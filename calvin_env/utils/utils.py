@@ -151,6 +151,28 @@ def get_egl_device_id(cuda_id: int) -> Union[int]:
                 return egl_id
     raise EglDeviceNotFoundError
 
+def get_egl_device_ids() -> dict:
+    ids = {}
+    dir_path = Path(__file__).absolute().parents[2] / "egl_check"
+    if not os.path.isfile(dir_path / "EGL_options.o"):
+        if os.environ.get("LOCAL_RANK", "0") == "0":
+            print("Building EGL_options.o")
+            subprocess.call(["bash", "build.sh"], cwd=dir_path)
+        else:
+            # In case EGL_options.o has to be built and multiprocessing is used, give rank 0 process time to build
+            time.sleep(5)
+    result = subprocess.run(["./EGL_options.o"], capture_output=True, cwd=dir_path)
+    n = int(result.stderr.decode("utf-8").split(" of ")[1].split(".")[0])
+    for egl_id in range(n):
+        my_env = os.environ.copy()
+        my_env["EGL_VISIBLE_DEVICE"] = str(egl_id)
+        result = subprocess.run(["./EGL_options.o"], capture_output=True, cwd=dir_path, env=my_env)
+        match = re.search(r"CUDA_DEVICE=[0-9]+", result.stdout.decode("utf-8"))
+        print(match)
+        if match:
+            current_cuda_id = int(match[0].split("=")[1])
+            ids[current_cuda_id] = egl_id
+    return ids
 
 def angle_between_angles(a, b):
     diff = b - a

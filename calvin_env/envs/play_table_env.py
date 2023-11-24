@@ -9,9 +9,9 @@ import sys
 import time
 
 import cv2
-import gym
-import gym.utils
-import gym.utils.seeding
+import gymnasium as gym
+import gymnasium.utils
+import gymnasium.utils.seeding
 import hydra
 import numpy as np
 import pybullet as p
@@ -150,8 +150,9 @@ class PlayTableSimEnv(gym.Env):
         else:
             print("does not own physics client id")
 
-    def render(self, mode="human"):
+    def render(self, mode=None):
         """render is gym compatibility function"""
+        mode = self.render_mode if mode is None else mode
         rgb_obs, depth_obs = self.get_camera_obs()
         if mode == "human":
             if "rgb_static" in rgb_obs:
@@ -177,7 +178,7 @@ class PlayTableSimEnv(gym.Env):
         return self.get_obs()
 
     def seed(self, seed=None):
-        self.np_random, seed = gym.utils.seeding.np_random(seed)
+        self.np_random, seed = gymnasium.utils.seeding.np_random(seed)
         # self.robot.np_random = self.np_random  # use the same np_randomizer for robot as for env
         return [seed]
 
