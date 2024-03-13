@@ -153,7 +153,7 @@ class PlayTableSimEnv(gym.Env):
     def render(self, mode=None):
         """render is gym compatibility function"""
         mode = self.render_mode if mode is None else mode
-        rgb_obs, depth_obs = self.get_camera_obs()
+        rgb_obs, depth_obs, decomp_obs = self.get_camera_obs()
         if mode == "human":
             if "rgb_static" in rgb_obs:
                 img = rgb_obs["rgb_static"][:, :, ::-1]
@@ -165,6 +165,10 @@ class PlayTableSimEnv(gym.Env):
         elif mode == "rgb_array":
             assert "rgb_static" in rgb_obs, "Environment does not have static camera"
             return rgb_obs["rgb_static"]
+        elif mode == "seg" or mode == "seg_static":
+            return decomp_obs["seg_static"]
+        elif mode == "seg_gripper":
+            return decomp_obs["seg_gripper"]
         else:
             raise NotImplementedError
 
@@ -186,16 +190,32 @@ class PlayTableSimEnv(gym.Env):
         assert self.cameras is not None
         rgb_obs = {}
         depth_obs = {}
+        decomp_obs = {}
         for cam in self.cameras:
             rgb, depth = cam.render()
             rgb_obs[f"rgb_{cam.name}"] = rgb
             depth_obs[f"depth_{cam.name}"] = depth
-        return rgb_obs, depth_obs
+            decomp_obs[f"seg_{cam.name}"] = cam.render_segmentation()
+        return rgb_obs, depth_obs, decomp_obs
+    
+    def get_static_camera_segmentation(self):
+        assert any(["static" == camera.name for camera in self.cameras])
+        for cam in self.cameras:
+            if cam.name == "static":
+                seg = cam.render_segmentation()
+        return seg
+
+    def get_gripper_camera_segmentation(self):
+        assert any(["gripper" == camera.name for camera in self.cameras])
+        for cam in self.cameras:
+            if cam.name == "gripper":
+                seg = cam.render_segmentation()
+        return seg
 
     def get_obs(self):
         """Collect camera, robot and scene observations."""
-        rgb_obs, depth_obs = self.get_camera_obs()
-        obs = {"rgb_obs": rgb_obs, "depth_obs": depth_obs}
+        rgb_obs, depth_obs, decomp_obs = self.get_camera_obs()
+        obs = {"rgb_obs": rgb_obs, "depth_obs": depth_obs, "decomp_obs": decomp_obs}
         obs.update(self.get_state_obs())
         return obs
 
@@ -277,7 +297,7 @@ def get_env(dataset_path, obs_space=None, show_gui=True, **kwargs):
 
     if obs_space is not None:
         exclude_keys = set(render_conf.cameras.keys()) - {
-            re.split("_", key)[1] for key in obs_space["rgb_obs"] + obs_space["depth_obs"]
+            re.split("_", key)[1] for key in obs_space["rgb_obs"] + obs_space["depth_obs"] + obs_space["decomp_obs"]
         }
         for k in exclude_keys:
             del render_conf.cameras[k]

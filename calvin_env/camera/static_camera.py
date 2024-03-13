@@ -3,6 +3,20 @@ import pybullet as p
 
 from calvin_env.camera.camera import Camera
 
+def get_unique_id(pixel):
+    if (pixel >= 0):
+        obUid = pixel & ((1 << 24) - 1)
+        linkIndex = (pixel >> 24) - 1
+        if obUid in [0,1,2,3,4]:
+            return np.uint8(obUid+1)
+        elif obUid == 5:
+            return np.uint8(5 + 1 + linkIndex)
+        elif obUid == 6:
+            return np.uint8(0)
+    else:
+        return np.uint8(0)
+
+convert_to_known_bodies = np.vectorize(lambda x: get_unique_id(x))
 
 class StaticCamera(Camera):
     def __init__(
@@ -70,3 +84,39 @@ class StaticCamera(Camera):
         )
         rgb_img, depth_img = self.process_rgbd(image, self.nearval, self.farval)
         return rgb_img, depth_img
+
+    def render_segmentation(self):
+        image = p.getCameraImage(
+            width=self.width,
+            height=self.height,
+            viewMatrix=self.viewMatrix,
+            projectionMatrix=self.projectionMatrix,
+            physicsClientId=self.cid,
+            flags=p.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
+            
+            
+        )
+        
+        # # Get the total number of bodies
+        # num_bodies = p.getNumBodies()
+        # for i in range(num_bodies):
+        #     # Get body info
+        #     body_info = p.getBodyInfo(i)
+        #     print(f"Body ID: {i}, Body info: {body_info}")
+        #     # Get the number of joints (links) for this body
+        #     num_joints = p.getNumJoints(i)
+        #     print(f"Number of joints (links) for body {i}: {num_joints}")
+        #     for j in range(num_joints):
+        #         # Get joint info
+        #         joint_info = p.getJointInfo(i, j)
+        #         print(f"Joint ID: {j}, Joint info: {joint_info}")
+                
+        (width, height, rgbPixels, depthPixels, segmentationMaskBuffer) = image
+        # rgb = np.reshape(rgbPixels, (height, width, 4))
+        # rgb_img = rgb[:, :, :3]
+        # depth_buffer = np.reshape(depthPixels, [height, width])
+        # depth = self.z_buffer_to_real_distance(z_buffer=depth_buffer, far=self.nearval, near=self.farval)
+        
+        img = np.reshape(segmentationMaskBuffer, (height, width))
+        img = convert_to_known_bodies(img)
+        return img

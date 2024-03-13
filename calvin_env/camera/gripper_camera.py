@@ -2,7 +2,7 @@ import numpy as np
 import pybullet as p
 
 from calvin_env.camera.camera import Camera
-
+from calvin_env.camera.static_camera import convert_to_known_bodies
 
 class GripperCamera(Camera):
     def __init__(self, fov, aspect, nearval, farval, width, height, robot_id, cid, name, objects=None):
@@ -44,3 +44,32 @@ class GripperCamera(Camera):
         )
         rgb_img, depth_img = self.process_rgbd(image, self.nearval, self.farval)
         return rgb_img, depth_img
+    
+    def render_segmentation(self):
+        camera_ls = p.getLinkState(
+            bodyUniqueId=self.robot_uid, linkIndex=self.gripper_cam_link, physicsClientId=self.cid
+        )
+        camera_pos, camera_orn = camera_ls[:2]
+        cam_rot = p.getMatrixFromQuaternion(camera_orn)
+        cam_rot = np.array(cam_rot).reshape(3, 3)
+        cam_rot_y, cam_rot_z = cam_rot[:, 1], cam_rot[:, 2]
+        # camera: eye position, target position, up vector
+        self.view_matrix = p.computeViewMatrix(camera_pos, camera_pos + cam_rot_y, -cam_rot_z)
+        self.projection_matrix = p.computeProjectionMatrixFOV(
+            fov=self.fov, aspect=self.aspect, nearVal=self.nearval, farVal=self.farval
+        )
+
+        image = p.getCameraImage(
+            width=self.width,
+            height=self.height,
+            viewMatrix=self.view_matrix,
+            projectionMatrix=self.projection_matrix,
+            physicsClientId=self.cid,
+            flags=p.ER_SEGMENTATION_MASK_OBJECT_AND_LINKINDEX,
+        )
+                        
+        (width, height, rgbPixels, depthPixels, segmentationMaskBuffer) = image
+        img = np.reshape(segmentationMaskBuffer, (height, width))
+        img = convert_to_known_bodies(img)
+        return img
+
