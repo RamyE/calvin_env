@@ -137,6 +137,27 @@ class PlayTableSimEnv(gym.Env):
 
         self.robot.load()
         self.scene.load()
+        # self.p.connect(p.DIRECT)
+        
+        # # Get the total number of bodies
+        # try:
+        #     num_bodies = self.p.getNumBodies()
+        #     print(num_bodies)
+        #     for i in range(num_bodies):
+        #         # Get body info
+        #         body_info = self.p.getBodyInfo(i)
+        #         print(f"Body ID: {i}, Body info: {body_info}")
+        #         # Get the number of joints (links) for this body
+        #         num_joints = self.p.getNumJoints(i)
+        #         print(f"Number of joints (links) for body {i}: {num_joints}")
+        #         for j in range(num_joints):
+        #             # Get joint info
+        #             joint_info = self.p.getJointInfo(i, j)
+        #             print(f"Joint ID: {j}, Joint info: {joint_info}")
+        # except Exception as e:
+        #     print(f"Error: {e}")
+
+
 
     def close(self):
         if self.ownsPhysicsClient:
@@ -195,21 +216,21 @@ class PlayTableSimEnv(gym.Env):
             rgb, depth = cam.render()
             rgb_obs[f"rgb_{cam.name}"] = rgb
             depth_obs[f"depth_{cam.name}"] = depth
-            decomp_obs[f"seg_{cam.name}"] = cam.render_segmentation()
+            decomp_obs[f"seg_{cam.name}"] = cam.render_segmentation(self.p.getNumBodies(self.cid))
         return rgb_obs, depth_obs, decomp_obs
     
     def get_static_camera_segmentation(self):
         assert any(["static" == camera.name for camera in self.cameras])
         for cam in self.cameras:
             if cam.name == "static":
-                seg = cam.render_segmentation()
+                seg = cam.render_segmentation(self.p.getNumBodies(self.cid))
         return seg
 
     def get_gripper_camera_segmentation(self):
         assert any(["gripper" == camera.name for camera in self.cameras])
         for cam in self.cameras:
             if cam.name == "gripper":
-                seg = cam.render_segmentation()
+                seg = cam.render_segmentation(self.p.getNumBodies(self.cid))
         return seg
 
     def get_obs(self):

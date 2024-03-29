@@ -45,7 +45,7 @@ class GripperCamera(Camera):
         rgb_img, depth_img = self.process_rgbd(image, self.nearval, self.farval)
         return rgb_img, depth_img
     
-    def render_segmentation(self):
+    def render_segmentation(self, numBodies):
         camera_ls = p.getLinkState(
             bodyUniqueId=self.robot_uid, linkIndex=self.gripper_cam_link, physicsClientId=self.cid
         )
@@ -70,6 +70,6 @@ class GripperCamera(Camera):
                         
         (width, height, rgbPixels, depthPixels, segmentationMaskBuffer) = image
         img = np.reshape(segmentationMaskBuffer, (height, width))
-        img = convert_to_known_bodies(img)
+        img = convert_to_known_bodies(img, numBodies)
         return img
 
